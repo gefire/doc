@@ -1,0 +1,335 @@
+常用命令： 
+
+sysctl -a 可以查看所有的system参数 
+
+sysctl -p sysctl.conf 使更改后的参数生效 
+
+sysctl -w sysctlargument= value  设置sysctlargument参数值 
+
+参数： 
+
+net.inet.ip.sourceroute=0
+net.inet.ip.accept_sourceroute=0 
+
+#接受源路由信息包 
+
+net.inet.tcp.drop_synfin=1 
+
+#安全参数，编译内核的时候加了options TCP_DROP_SYNFIN才可以用，可以阻止某些OS探测 
+
+kern.maxvnodes=8446 
+
+#Unix系统中，一个文件对应着V节点表中惟一的一个V节点项，一般情况下增加vnode项可以增加磁盘IO，不过通常是系统自已调整的，不需要修改，但在磁盘IO成为系统瓶颈时，系统VNODE不足，就需要手动增加，此时还应考虑闲置的内存资源 
+
+PS:刚查了 一下系统并不存在这个值，或许在高一点的内核中改为了fs.inode-nr 和fs.inode-state 
+
+      fs.file-nr = 896           
+
+      fs.file-max = 65536   设置系统可以打开文件的最大数 
+
+kern.maxproc 
+
+#系统可用的最大进程数 
+
+kern.masprocperuid 
+
+#单个用户可用的最大进程数 
+
+kern.maxfilesperproc 
+
+#单个进程可用的最大文件数 
+
+kern.ipc.maxsockbuf 
+
+#最大套接字缓冲区 
+
+kern.somaxconn 
+
+#最大等待完成的套接字连接大小，并发连接数
+PS：如今改为了 net.core.somaxconn = 128 
+
+kern.ipc.shmmax 
+
+#共享内存和信号灯，如果过小一些大型软件无法运行 
+
+kern.ipc.numopensockets 
+
+可用的socket 数 
+
+kern.ipc.shm_use_phys 
+
+#不清楚，应该是可用的共享物理内存 
+
+以下是网上搜的： 
+
+这个选项预设为 0 (关闭)，我们可以将它设为 1 (打开)。如果我们将它设 
+
+成 1，则所有 System V 共享内存 (share memory，一种程序间沟通的方式)部份都会被留在实体的 
+
+内存 (physical memory) 中，而不会被放到硬盘上的 swap 空间。我们知道物理内存的存取速度比 
+
+硬盘快许多，而当物理内存空间不足时，部份数据会被放到虚拟的内存上，从物理内存和虚拟内存之 
+
+间移转的动作就叫作 swap。如果时常做 swap 的动作，则需要一直对硬盘作 I/O，速度会很慢。因 
+
+此，如果我们有大量的程序 (数百个) 需要共同分享一个小的共享内存空间，或者是共享内存空间很 
+
+大时，我们可以将这个值打开。
+这个值可以在开机完成后才设定，因此只要放在 /etc/sysctl.conf 中即可：
+kern.ipc.shm_use_phys=1 
+
+net.inet.ip.portrange. 
+
+# 是用来控制 TCP 及 UDP 所使用的 port 范围，这个范围被分成三个部份 
+
+，低范围、预设范围、及高范围。让我们看一下目前各范围 port 的情形：
+#sysctl -a|grep portrange
+net.inet.ip.portrange.lowfirst: 1023
+net.inet.ip.portrange.lowlast: 600
+net.inet.ip.portrange.first: 1024
+net.inet.ip.portrange.last: 5000
+net.inet.ip.portrange.hifirst: 49152
+net.inet.ip.portrange.hilast: 65535
+一般的网络程序都会用到预设范围的 port，然而，这个预设范围只从 1024 到 5000，这对于一台忙 
+
+碌的 FTP server 或 proxy server 可能会有不足的情形。所以我们可以手动调整一下 
+
+net.inet.ip.portrange.last 这个值，将它调为 10000、20000、甚至 40000 都是合理的。如果要 
+
+在一开机就调整这个值，我们可以修改 /etc/sysctl.conf，并增加下列这一行：
+net.inet.ip.portrange.last=40000 
+
+vfs.vmiodirenable
+#这个选项预设被设为 1，也就是打开的状态。它被用来决定一个目录中的结构 (目录下的其它文件名 
+
+称等等) 被快取在内存中的行为。一般的目录结构可能都不大，而这些目录结构会被快取在物理内存 
+
+中。物理内存中所存放的目录结构快取有限，所以不管我们的物理内存有多大，预设都只会快取一定 
+
+大小的目录结构。如果我们将这个选项打开，系统将 buffer cache 放在虚拟内存的快取中，目录结 
+
+构也就会被存放在虚拟内存中。这样的好处是所有的内存空间都可以被拿来做目录的快取，而缺点是 
+
+最小用来存放目录结构的快取会从 512 bytes 变成 4K。
+如果您的系统物理内存空间有限，建议您将这个选项关闭。但如果您的系统需要进行大量档案操作， 
+
+例如 proxy、多人使用的邮件服务器、或是 news server 等，建议将这个选项打开。 
+
+vfs.write_behind
+#这个选项预设为 1，也就是打开的状态。在打开时，在系统需要写入数据在硬盘或其它储存设备上时 
+
+，它会等到收集了一个 cluster 单位的数据后再一次写入，否则会在一个暂存区空间有写入需求时 
+
+就立即写到硬盘上。这个选项打开时，对于一个大档案写入速度非常有帮助。但如果您遇到有很多行 
+
+程延滞在等待写入动作时，您可能必须关闭这个功能。 
+
+vfs.hirunningspace
+#这个值决定了系统可以将多少数据放在写入储存设备的等候区。通常使用默认值即可，但当我们有多 
+
+颗硬盘时，我们可以将它调大为 4MB 或 5MB。但必须注意的是，太大的值反而会造成效能低落。 
+
+net.inet.tcp.sendspace 及 net.inet.tcp.recvspace
+#这二个选项分别控制了网络 TCP 联机所使用的传送及接收暂存区的大小。预设的传送暂存区为 32K 
+
+，而接收暂存区为 64K。如果需要加速 TCP 的传输，可以将这二个值调大一点，但缺点是太大的值 
+
+会造成系统核心占用太多的内存。如果我们的机器会同时服务数百或数千个网络联机，那么这二个选 
+
+项最好维持默认值，否则会造成系统核心内存不足。但如果我们使用的是 gigabite 的网络，将这二 
+
+个值调大会有明显效能的提升。传送及接收的暂存区大小可以分开调整，例如，假设我们的系统主要 
+
+做为网页服务器，我们可以将接收的暂存区调小一点，并将传送的暂存区调大，如此一来，我们就可 
+
+以避免占去太多的核心内存空间。
+还有要注意的是，除了这二个选项可以控制网络传输暂存区大小外，route 这个指令也可以用来依路 
+
+由路径的不同指定暂存区大小。另外 ipfw 等防火墙软件也可以用来限制每个联机所能使用的网络频 
+
+宽。
+如果我们将传送或接收的暂存区设为大于 65535，除非我们的服务器本身及客户端所使用的操作系统 
+
+支持 TCP 协议的 windows scaling extension (请参考 RFC 1323 文件)。FreeBSD 预设已支援 
+
+rfs1323 (即 sysctl 的 net.inet.tcp.rfc1323 选项)。 
+
+net.inet.tcp.always_keepalive
+#当这个选项打开时，系统会定期送出「keepalives」以检查一个 TCP 联机是否中断。在打开的状况 
+
+下，所有运作的网络程序都会有定时检查联机是否中断的功能，否则只有当应用程序本身支持时才有 
+
+此功能。这个选项打开的好处是让系统更便于管理网络联机，尤其是当我们系统中常有一些莫名其妙 
+
+就中断联机的使用者时。例如，当一个使用者利用拨接连到系统时，很可能在完成一个完整的 TCP 
+
+联机之前，就因为拨接中断而造成联机异常中断。当然，在某些情况下，也有可能会造成系统误判网 
+
+络联机已中断而结束这个 TCP 联机。 
+
+net.inet.tcp.delayed_ack
+#TCP 协议有一个特性，就是当收到客户端的数据时，会传回一个 ACK (acknowledgement) 的封包， 
+
+以确认已收到数据。然而，我们也可以将 ACK 封包和所要回传的资料一起送出。例如，当我使用 
+
+telnet 进入系统时，在输入指定时，当我们在键盘上敲打一个字符，系统会送回一个表示已接收到 
+
+该字符的 ACK 封包，并传回一个含有该字符的封包以在终端机上显示。当 
+
+net.inet.tcp.delayed_ack 打开时，系统会将 ACK 和显示该字符的封包一传送，而不需分成二个封 
+
+包。所以这个选项打开时，可以将封包数量减少一半，以加速网络传输。其它的网络服务，例如， 
+
+WWW、 SMTP、POP3 等也都具有这种特性 
+
+kern.ipc.nmbclusters
+#这个值用来调整系统在开机后所要分配给网络 mbufs 的 cluster 数量，由于每个 cluster 大小为 
+
+2K，所以当这个值为 1024 时，也是会用到 2MB 的核心内存空间。我们可以简单的估计出大约需要 
+
+的大小，例如，假设我们的网页同时约有 1000 个联机，而 TCP 传送及接收的暂存区大小都是 16K 
+
+，则最糟的情况下，我们会需要 (16K+16K) * 1024，也就是 32MB 的空间，然而所需的 mbufs 大概 
+
+是这个空间的二倍，也就是 64MB，所以所需的 cluster 数量为 64MB/2K，也就是 32768。对于内存 
+
+有限的机器，建议值是 1024 到 4096 之间，而当拥有海量存储器空间时，我们可以将它设定为 
+
+4096 到 32768 之间。我们可以使用 netstat 这个指令并加上参数 -m 来查看目前所使用的 mbufs 
+
+数量。
+当我们要修改这个值是，必须在一开机就修改，所以只能在 /boot/loader.conf 中加入修改的设定 
+
+，例如：
+kern.ipc.nmbclusters=16384 
+
+另外还有两个 sysctl.conf配置： 
+
+kern.ipc.somaxconn=8192
+kern.ipc.maxsockbuf=2097152
+kern.maxfilesperproc=32768
+kern.maxfiles=65536
+#kern.securelevel=0
+net.inet.tcp.sendspace=65536
+net.inet.tcp.recvspace=32768
+net.inet.udp.maxdgram=57344
+net.inet.icmp.drop_redirect=1
+net.inet.icmp.log_redirect=0
+net.inet.ip.redirect=0
+net.inet6.ip6.redirect=0
+net.inet.icmp.icmplim=100
+net.inet.tcp.always_keepalive=0
+net.inet.tcp.delayed_ack=0
+net.inet.tcp.log_in_vain=0
+net.inet.udp.log_in_vain=0
+net.inet.tcp.blackhole=2
+net.inet.udp.blackhole=1
+net.local.stream.sendspace=65535
+net.local.stream.recvspace=32768
+net.inet.ip.fastforwarding=1
+查看 # sysctl -a |grep syncookies 是否打开，开着可以防小规模的DDOS
+如：# sysctl net.inet.tcp.syncookies=1
+# ee /boot/loader.conf
+kern.maxdsiz=”536870912″
+kern.ipc.maxsockets=”4008″
+kern.ipc.nmbclusters=”32768″
+kern.ipc.nmbufs=”65535″
+kern.ipc.nsfbufs=”2496″
+net.inet.tcp.tcbhashsize=”2048″
+bestwc at 2008-3-12 21:46:10
+再来一份类似的： 
+
+net.inet.tcp.rfc1323=1
+net.inet.tcp.rfc1644=1
+net.inet.tcp.rfc3042=1
+net.inet.tcp.rfc3390=1
+#### 某些加快网络性能的协议，请参考RFC文章。 
+net.inet.ip.forwarding=1
+##作路由必须打开
+net.inet.ip.sourceroute=0
+net.inet.ip.accept_sourceroute=0
+##安全方面的参数
+kern.ipc.maxsockbuf=8388608
+##最大的套接字缓冲区
+kern.ipc.somaxconn=8192
+##最大的等待连接完成的套接字队列大小，高负载服务器和受到分布式服务阻塞攻击的系统也许
+会因为这个队列被塞满而不能提供正常服务。默认仅为128，根据机器和实际情况需要改动，太大就 
+
+浪费了内存 
+
+kern.maxfiles=65536
+##系统中允许的最多文件数量，缺省的是几千个但如果你在运行数据库或大的很吃描述符的进程可以 
+
+把它设到1万或2万个
+kern.maxfilesperproc=32768
+##每个进程能够同时打开的最大文件数量
+net.inet.tcp.delayed_ack=0
+##当一台计算机发起TCP连接请求时，系统会回应ACK应答数据包。该选项设置是否延迟ACK应答数据 
+
+包，把它和包含数据的数据包一起发送，在高速网络和低负载的情况下会略微提高性能，但在网络连 
+
+接较差的时候，对方计算机得不到应答会持续发起连接请求，反而会降低性能。
+net.inet.tcp.sendspace=65535
+##最大的待发送TCP数据缓冲区空间，应用程序将数据放到这里就认为发送成功了，系统TCP堆栈保证 
+
+数据的正常发送
+net.inet.tcp.recvspace=65535
+##最大的接受TCP缓冲区空间，系统从这里将数据分发给不同的套接字，增大该空间可提高系统瞬间 
+
+接受数据的能力以提高性能。
+net.inet.udp.recvspace=65535
+##最大的接受UDP缓冲区大小
+net.inet.udp.maxdgram=57344
+##最大的发送UDP数据缓冲区大小
+net.local.stream.recvspace=32768 
+
+##本地套接字连接的数据接收空间
+net.local.stream.sendspace=65535
+##本地套接字连接的数据发送空间
+net.inet.icmp.drop_redirect=1
+net inet.icmp.log_redirect=1‘
+net.inet.ip.redirect=0
+#net.inet6.ip6.redirect=0
+##屏蔽ICMP重定向功能
+net.inet.icmp.bmcastecho=0
+net.inet.icmp.maskrepl=0
+##防止广播风暴
+net.inet.icmp.icmplim=100
+##限制系统发送ICMP速率
+net.inet.icmp.icmplim_output=0
+net.inet.tcp.drop_synfin=1
+##安全参数，编译内核的时候加了options TCP_DROP_SYNFIN才可以用
+net.inet.tcp.always_keepalive=0
+##设置为1会帮助系统清除没有正常断开的TCP连接，这增加了一些网络带宽的使用，但是一些死掉的 
+
+连接最终能被识别并清除。死的TCP连接是被拨号用户存取的系统的一个特别的问题，因为用户经常 
+
+断开modem而不正确的关闭活动的连接。
+net.inet.ip.intr_queue_maxlen=1000
+##若看到net.inet.ip.intr_queue_drops这个在增加，就要调大net.inet.ip.intr_queue_maxlen， 
+
+为0最好
+bestwc at 2008-3-12 21:46:40
+####以下为防止dos攻击#####
+net.inet.tcp.msl=7500
+##freebsd默认为30000
+net.inet.tcp.blackhole=2
+##接收到一个已经关闭的端口发来的所有包，直接drop，如果设置为1则是只针对TCP包
+net.inet.udp.blackhole=1
+##接收到一个已经关闭的端口发来的所有UDP包直接drop 
+
+net.inet.ipf.fr_tcpidletimeout=7200
+net.inet.ipf.fr_tcpclosewait=60
+net.inet.ipf.fr_tcplastack=120
+net.inet.ipf.fr_tcptimeout=120
+net.inet.ipf.fr_tcpclosed=60
+net.inet.ipf.fr_udptimeout=90
+net.inet.ipf.fr_icmptimeout=35
+net.inet.ipf.fr_tcphalfclosed=300
+net.inet.ipf.fr_defnatage=600
+net.inet.tcp.inflight.enable=1
+## 为网络数据连接时提供缓冲
+net.inet.ip.fastforwarding=0
+##如果打开的话每个目标地址一次转发成功以后它的数据都将被记录进路由表和arp数据表，节约路 
+
+由的计算时间,但会需要大量的内核内存空间来保存路由表。
